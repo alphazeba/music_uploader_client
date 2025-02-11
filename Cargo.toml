@@ -1,0 +1,13 @@
+[package]
+name = "music_uploader_client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "2"
+reqwest = { version = "0.12", features = ["blocking"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+clap = { version = "4.5", features = ["derive"] }
+sha256 = "1.5.0"
+music_uploader_server = { path = "../music_uploader_server" }
