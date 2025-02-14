@@ -1,5 +1,5 @@
 use crate::MusicUploaderClientConfig;
-use reqwest::blocking::{Client, Response};
+use reqwest::blocking::{Client, Response, RequestBuilder};
 use music_uploader_server::model::{from_json, AlbumSearchResponse};
 
 fn build_url(config: &MusicUploaderClientConfig, route: &str) -> String {
@@ -19,19 +19,16 @@ pub fn check_conn(client: &Client,config: &MusicUploaderClientConfig) -> Result<
 }
 
 pub fn check_auth(client: &Client, config: &MusicUploaderClientConfig) -> Result<(),String> {
-    match client.get(build_url(config, "auth"))
-    .basic_auth(
-        config.user.clone(),
-        Some(config.password.clone()))
-    .send() {
-        Ok(x) => {
-            if !x.status().is_success() {
-                return Err(format!("status: {}", x.status()));
+    match apply_auth(config, client.get(build_url(config, "auth")))
+        .send() {
+            Ok(x) => {
+                if !x.status().is_success() {
+                    return Err(format!("status: {}", x.status()));
+                }
+                Ok(())
             }
-            Ok(())
+            Err(e) => Err(format!("{:?}", e)),
         }
-        Err(e) => Err(format!("{:?}", e)),
-    }
 }
 
 pub fn send_song(
@@ -42,15 +39,12 @@ pub fn send_song(
     album: &String,
     song_file_name: &String
 ) -> Result<Response, String> {
-    match client.post(build_url(config, "upload"))
+    match apply_auth(config, client.post(build_url(config, "upload")))
         .header("file", song_file_name)
         .header("album", album)
         .header("artist", artist)
         .header("hash", sha256::digest(&file))
         .body(file)
-        .basic_auth(
-            config.user.clone(),
-            Some(config.password.clone()))
         .send() {
             Ok(response) => {
                 if !response.status().is_success() {
@@ -72,9 +66,7 @@ pub fn album_search(
     album: &String,
 ) -> Result<Vec<String>, String> {
     let url = format!("albumsearch/{}", album);
-    match client.get(build_url(config, url.as_str()))
-        .basic_auth(config.user.clone(),
-            Some(config.password.clone()))
+    match apply_auth(config, client.get(build_url(config, url.as_str())))
         .send() {
             Ok(response) => {
                 if !response.status().is_success() {
@@ -91,4 +83,24 @@ pub fn album_search(
                 Err(e.to_string())
             }
         }
+}
+
+pub fn trigger_scan(
+    client: &Client,
+    config: &MusicUploaderClientConfig
+) -> Result<(),String> {
+    match apply_auth(config, client.post(build_url(config, "triggerscan")))
+        .send() {
+            Ok(x) => {
+                if !x.status().is_success() {
+                    return Err(format!("status: {}", x.status()));
+                }
+                Ok(())
+            }
+            Err(e) => Err(format!("{:?}", e)),
+        }
+}
+
+fn apply_auth(config: &MusicUploaderClientConfig, request_builder: RequestBuilder) -> RequestBuilder {
+    request_builder.basic_auth(config.password.clone(), Some(config.password.clone()))
 }

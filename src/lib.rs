@@ -1,6 +1,6 @@
 use std::{fs, io};
 
-use api::{album_search, check_auth, check_conn, send_song};
+use api::{album_search, check_auth, check_conn, send_song, trigger_scan};
 use path_utls::{get_song_file_paths_in_dir, strip_directory_from_file, PathError};
 use reqwest::blocking::Client;
 use thiserror::Error;
@@ -103,6 +103,13 @@ impl MusicUploaderClient {
         ).map_err(|e| {
             MusicUploaderError::Failed(e)
         })
+    }
+
+    pub fn trigger_scan(&self) -> Result<(), MusicUploaderError> {
+        trigger_scan(&self.http_client, &self.config)
+            .map_err(|e| {
+                MusicUploaderError::Failed(e)
+            })
     }
 }
 
